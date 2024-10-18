@@ -11,12 +11,41 @@ if (!is_dir($save_path)) {
 // 禁用缓存。
 header('Cache-Control: no-store');
 
+// 限制POST内容大小，防止大文件上传攻击
+$MAX_NOTE_SIZE = 1024 * 100; // 100KB
+
+// 检查是否为新建笔记的API请求
+if (isset($_GET['new']) && ($_SERVER['REQUEST_METHOD'] === 'POST' || isset($_GET['text']))) {
+    // 生成一个随机的5个字符的笔记名称
+    $random_note_name = substr(str_shuffle('234579abcdefghjkmnpqrstwxyz'), 0, 5);
+    $path = $save_path . '/' . $random_note_name;
+
+    // 获取文本内容
+    $text = isset($_POST['text']) ? $_POST['text'] : (isset($_GET['text']) ? $_GET['text'] : file_get_contents("php://input"));
+
+    // 如果POST内容超出大小限制，终止请求。
+    if (strlen($text) > $MAX_NOTE_SIZE) {
+        header('Content-Type: application/json');
+        die(json_encode(['success' => false, 'message' => 'Content too large']));
+    }
+
+    // 保存或更新文件内容
+    if (file_put_contents($path, $text) === false) {
+        header('Content-Type: application/json');
+        die(json_encode(['success' => false, 'message' => 'Failed to save the note']));
+    }
+
+    // 设置响应头为JSON格式
+    header('Content-Type: application/json');
+    echo json_encode(['success' => true, 'note' => $random_note_name]);
+    exit;
+}
+
 // 获取笔记名称
 $note_name = isset($_GET['note']) ? $_GET['note'] : null;
 
 // 如果未提供笔记名称，或名称过长，或包含非法字符。
 if (!$note_name || strlen($note_name) > 64 || !preg_match('/^[a-zA-Z0-9_-]+$/', $note_name)) {
-
     // 生成一个5个随机无歧义字符的名称，并重定向到该名称。
     $random_note_name = substr(str_shuffle('234579abcdefghjkmnpqrstwxyz'), 0, 5);
     header("Location: /" . $random_note_name); // 不带查询参数
@@ -31,27 +60,31 @@ if (strpos($note_name, '..') !== false || strpos($note_name, '/') !== false) {
     die('Invalid note path');
 }
 
-// 限制POST内容大小，防止大文件上传攻击
-$MAX_NOTE_SIZE = 1024 * 100; // 100KB
-
 // 处理POST请求，用于保存或更新笔记内容。
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['text']) || file_get_contents("php://input"))) {
     $text = isset($_POST['text']) ? $_POST['text'] : file_get_contents("php://input");
 
     // 如果POST内容超出大小限制，终止请求。
     if (strlen($text) > $MAX_NOTE_SIZE) {
-        die('Content too large');
+        header('Content-Type: application/json');
+        die(json_encode(['success' => false, 'message' => 'Content too large']));
     }
 
     // 更新文件内容，并处理文件系统异常
     if (file_put_contents($path, $text) === false) {
-        die('Failed to save the note');
+        header('Content-Type: application/json');
+        die(json_encode(['success' => false, 'message' => 'Failed to save the note']));
     }
 
     // 如果提供的内容为空，删除文件，并处理删除异常
     if (!strlen($text) && is_file($path) && !unlink($path)) {
-        die('Failed to delete the note');
+        header('Content-Type: application/json');
+        die(json_encode(['success' => false, 'message' => 'Failed to delete the note']));
     }
+
+    // 设置响应头为JSON格式
+    header('Content-Type: application/json');
+    echo json_encode(['success' => true, 'note' => $note_name]);
     exit;
 }
 
@@ -83,54 +116,18 @@ $note_content = is_file($path) ? file_get_contents($path) : '';
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
-body {
-    margin: 0;
-    background: #ebeef1;
-}
-.container {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    bottom: 100px; /* 为底部按钮留出更多空间 */
-    left: 20px;
-}
-#content {
-    margin: 0;
-    padding: 20px;
-    overflow-y: auto;
-    resize: none;
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
-    border: 1px solid #ddd;
-    outline: none;
-}
-#readonly-content {
-    margin: 0;
-    padding: 20px;
-    overflow-y: auto;
-    resize: none;
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
-    border: 1px solid #ddd; /* 添加边框样式 */
-    outline: none;
-    background: #f9f9f9; /* 可调整背景颜色 */
-}
-#printable {
-    display: none;
-}
 .button-container {
     position: absolute;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 10px; /* 按钮之间的间距 */
+    gap: 5px; /* 减少按钮之间的间距 */
 }
+
 .button-container button {
-    padding: 10px 20px;
-    font-size: 16px;
+    padding: 8px 16px; /* 减少内边距 */
+    font-size: 14px; /* 减小字体大小 */
     cursor: pointer;
     background-color: #007bff;
     color: #fff;
@@ -138,39 +135,37 @@ body {
     border-radius: 4px;
     transition: background-color 0.3s ease;
 }
+
 .button-container button:hover {
     background-color: #0056b3;
 }
+
 .copy-success {
     position: fixed;
-    bottom: 120px;
+    bottom: 100px; /* 调整位置，避免与按钮重叠 */
     left: 50%;
     transform: translateX(-50%);
     background: #28a745;
     color: #fff;
-    padding: 10px 20px;
+    padding: 8px 16px; /* 减少内边距 */
     border-radius: 4px;
     display: none;
     z-index: 1000;
 }
-@media (prefers-color-scheme: dark) {
-    body {
-        background: #333b4d;
+
+@media (max-width: 768px) { /* 针对移动端的特定样式 */
+    .button-container {
+        gap: 5px; /* 进一步减少按钮之间的间距 */
     }
-    #content, #readonly-content {
-        background: #24262b;
-        color: #fff;
-        border-color: #495265;
+
+    .button-container button {
+        padding: 6px 12px; /* 进一步减少内边距 */
+        font-size: 12px; /* 进一步减小字体大小 */
     }
-}
-@media print {
-    .container {
-        display: none;
-    }
-    #printable {
-        display: block;
-        white-space: pre-wrap;
-        word-break: break-word;
+
+    .copy-success {
+        bottom: 80px; /* 调整位置，避免与按钮重叠 */
+        padding: 6px 12px; /* 进一步减少内边距 */
     }
 }
 </style>
