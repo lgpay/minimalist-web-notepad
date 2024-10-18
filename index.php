@@ -116,18 +116,54 @@ $note_content = is_file($path) ? file_get_contents($path) : '';
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
+body {
+    margin: 0;
+    background: #ebeef1;
+}
+.container {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    bottom: 100px; /* 为底部按钮留出更多空间 */
+    left: 20px;
+}
+#content {
+    margin: 0;
+    padding: 20px;
+    overflow-y: auto;
+    resize: none;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    outline: none;
+}
+#readonly-content {
+    margin: 0;
+    padding: 20px;
+    overflow-y: auto;
+    resize: none;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    border: 1px solid #ddd; /* 添加边框样式 */
+    outline: none;
+    background: #f9f9f9; /* 可调整背景颜色 */
+}
+#printable {
+    display: none;
+}
 .button-container {
     position: absolute;
     bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 5px; /* 减少按钮之间的间距 */
+    gap: 10px; /* 按钮之间的间距 */
 }
-
 .button-container button {
-    padding: 8px 16px; /* 减少内边距 */
-    font-size: 14px; /* 减小字体大小 */
+    padding: 10px 20px;
+    font-size: 16px;
     cursor: pointer;
     background-color: #007bff;
     color: #fff;
@@ -135,37 +171,39 @@ $note_content = is_file($path) ? file_get_contents($path) : '';
     border-radius: 4px;
     transition: background-color 0.3s ease;
 }
-
 .button-container button:hover {
     background-color: #0056b3;
 }
-
 .copy-success {
     position: fixed;
-    bottom: 100px; /* 调整位置，避免与按钮重叠 */
+    bottom: 120px;
     left: 50%;
     transform: translateX(-50%);
     background: #28a745;
     color: #fff;
-    padding: 8px 16px; /* 减少内边距 */
+    padding: 10px 20px;
     border-radius: 4px;
     display: none;
     z-index: 1000;
 }
-
-@media (max-width: 768px) { /* 针对移动端的特定样式 */
-    .button-container {
-        gap: 5px; /* 进一步减少按钮之间的间距 */
+@media (prefers-color-scheme: dark) {
+    body {
+        background: #333b4d;
     }
-
-    .button-container button {
-        padding: 6px 12px; /* 进一步减少内边距 */
-        font-size: 12px; /* 进一步减小字体大小 */
+    #content, #readonly-content {
+        background: #24262b;
+        color: #fff;
+        border-color: #495265;
     }
-
-    .copy-success {
-        bottom: 80px; /* 调整位置，避免与按钮重叠 */
-        padding: 6px 12px; /* 进一步减少内边距 */
+}
+@media print {
+    .container {
+        display: none;
+    }
+    #printable {
+        display: block;
+        white-space: pre-wrap;
+        word-break: break-word;
     }
 }
 </style>
